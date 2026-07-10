@@ -166,7 +166,28 @@ def orbit_progress_percent(planet_key: str, d: date) -> int:
 
 
 def todays_planet(d: date, rotation_order: list[str] | None = None) -> str:
-    """Pick which planet to feature today, cycling through a fixed order."""
-    order = rotation_order or list(PLANETS.keys())
-    idx = days_since_epoch(d) % len(order)
-    return order[idx]
+    """Pick which planet to feature today.
+
+    Uses a shuffled rotation: every 8 days, the full list of planets is
+    reshuffled (deterministically, seeded from the cycle number) and then
+    shown one per day in that shuffled order. This guarantees every planet
+    appears once before any repeat, while still feeling "random" day to
+    day, rather than a fixed Mercury-Venus-Earth-... sequence.
+
+    Deliberately stateless: given the same date, this always produces the
+    same planet, with no need to persist "which planets have I shown"
+    anywhere between workflow runs.
+    """
+    import random
+
+    planets = rotation_order or list(PLANETS.keys())
+    n = len(planets)
+    days = days_since_epoch(d)
+    cycle_number = days // n       # which 8-day cycle we're in
+    day_in_cycle = days % n        # position within that cycle's shuffle
+
+    rng = random.Random(cycle_number)  # same cycle_number -> same shuffle, always
+    shuffled = planets.copy()
+    rng.shuffle(shuffled)
+
+    return shuffled[day_in_cycle]
