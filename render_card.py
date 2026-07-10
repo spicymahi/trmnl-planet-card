@@ -87,10 +87,22 @@ def screenshot_html(html_path: Path, png_path: Path):
 
 
 def downscale_and_dither(src_path: Path, dst_path: Path):
+    """Downscale to the real device resolution and convert to pure 1-bit.
+
+    Deliberately uses NEAREST-neighbor resizing (not LANCZOS) and a hard
+    black/white threshold (not Floyd-Steinberg dithering). This card is
+    line art and text, not a photograph -- smooth resampling filters and
+    dithering both introduce intermediate gray values along every edge,
+    which then render as fuzzy dot patterns instead of crisp solid lines.
+    NEAREST + a hard threshold keeps every line and letter a clean,
+    unambiguous black or white pixel.
+    """
     im = Image.open(src_path).convert("L")
-    resized = im.resize((TRMNL_WIDTH, TRMNL_HEIGHT), Image.LANCZOS)
-    dithered = resized.convert("1")  # PIL's default 'L'->'1' uses Floyd-Steinberg
-    dithered.save(dst_path)
+    resized = im.resize((TRMNL_WIDTH, TRMNL_HEIGHT), Image.NEAREST)
+
+    threshold = 128
+    bw = resized.point(lambda p: 255 if p > threshold else 0, mode="L").convert("1")
+    bw.save(dst_path)
 
 
 def render(planet_key: str, hero_image_path: str, out_path: str, when: datetime | None = None):
