@@ -27,10 +27,10 @@ def make_squares_html(percent: int, count: int, size_px: int) -> str:
     filled = round(count * percent / 100)
     spans = []
     for i in range(count):
-        bg = "#111111" if i < filled else "transparent"
+        bg = "#000000" if i < filled else "transparent"
         spans.append(
             f'<span style="width: {size_px}px; height: {size_px}px; '
-            f'border: 1.5px solid #111111; background: {bg};"></span>'
+            f'border: 1.5px solid #000000; background: {bg};"></span>'
         )
     return "\n              ".join(spans)
 
@@ -55,9 +55,9 @@ def render_html(fields: dict, hero_image_path: str, day_percent: int, orbit_perc
         'family=Archivo+Black&family=Space+Mono:wght@400;700&display=swap" '
         'rel="stylesheet">\n'
         '<style>\n'
-        '  body { margin: 0; background: #e9e9e6; }\n'
-        '  a { color: #111111; }\n'
-        '  a:hover { color: #444444; }\n'
+        '  body { margin: 0; background: #ffffff; }\n'
+        '  a { color: #000000; }\n'
+        '  a:hover { color: #000000; }\n'
         '</style>\n'
     )
     html = re.sub(r"<helmet>.*?</helmet>", google_fonts_link, html, flags=re.DOTALL)
