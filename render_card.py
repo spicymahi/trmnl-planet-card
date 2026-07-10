@@ -97,7 +97,13 @@ def render(planet_key: str, hero_image_path: str, out_path: str, when: datetime 
     when = when or datetime.now(timezone.utc)
     fields, pct = compute_fields(planet_key, when)
 
-    html = render_html(fields, hero_image_path=hero_image_path, day_percent=pct, orbit_percent=pct)
+    # Resolve to an absolute path so the <img src="..."> reference works
+    # regardless of where the temporary HTML file ends up on disk (it's
+    # saved under output/, not the repo root, so a relative path would
+    # otherwise point at the wrong location).
+    hero_abs_path = str(Path(hero_image_path).resolve())
+
+    html = render_html(fields, hero_image_path=hero_abs_path, day_percent=pct, orbit_percent=pct)
 
     tmp_html = Path("output/_tmp_card.html")
     tmp_html.parent.mkdir(parents=True, exist_ok=True)
