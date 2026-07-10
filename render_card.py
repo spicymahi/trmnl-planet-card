@@ -18,7 +18,7 @@ import orbital_math as om
 from render_html import render_html, build_fields
 
 TRMNL_WIDTH = 800
-TRMNL_HEIGHT = 400
+TRMNL_HEIGHT = 480
 
 # Screenshot at 2x the target resolution for crisper downscaling/dithering,
 # matching the template's own natural width (1760-ish at 2:1 ratio).
