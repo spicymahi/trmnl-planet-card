@@ -1,26 +1,32 @@
 """
 Simplified orbital mechanics for the Planet Card.
 
-These are deliberately approximate (circular, coplanar orbits) — the goal is a
-plausible, smoothly-changing display, not ephemeris-grade accuracy.
+Orbital periods and radii are real; positions use real J2000 mean
+longitudes (from JPL's low-precision planetary elements) as each planet's
+true starting angle, then advance that angle uniformly over time assuming
+a circular orbit. This is still an approximation (real orbits are
+slightly elliptical, and we ignore orbital inclination), but starting each
+planet from its real relative position -- instead of assuming every
+planet lines up at angle 0 on the epoch date -- is what actually makes
+Earth-to-planet distances come out realistic rather than arbitrary.
 """
 
 import math
 from datetime import date, datetime, timezone
 
-# Orbital period in Earth days, and mean orbital radius in AU, per planet.
-# Epoch reference: Jan 1, 2000 (J2000), each planet placed at angle 0 for
-# simplicity — real world starting positions differ, but since this is a
-# stylistic approximation, a shared epoch keeps the math simple and consistent.
+# Orbital period in Earth days, mean orbital radius in AU, and mean
+# longitude (degrees) at epoch J2000 (Jan 1, 2000), per planet. Mean
+# longitude values are from JPL's "Keplerian Elements for Approximate
+# Positions of the Major Planets" (https://ssd.jpl.nasa.gov/planets/approx_pos.html).
 PLANETS = {
-    "mercury": {"period_days": 88.0,    "radius_au": 0.39, "name": "MERCURY", "symbol": "\u263F"},
-    "venus":   {"period_days": 224.7,   "radius_au": 0.72, "name": "VENUS",   "symbol": "\u2640"},
-    "earth":   {"period_days": 365.25,  "radius_au": 1.00, "name": "EARTH",   "symbol": "\u2295"},
-    "mars":    {"period_days": 687.0,   "radius_au": 1.52, "name": "MARS",    "symbol": "\u2642"},
-    "jupiter": {"period_days": 4331.0,  "radius_au": 5.20, "name": "JUPITER", "symbol": "\u2643"},
-    "saturn":  {"period_days": 10747.0, "radius_au": 9.58, "name": "SATURN",  "symbol": "\u2644"},
-    "uranus":  {"period_days": 30589.0, "radius_au": 19.2, "name": "URANUS",  "symbol": "\u2645"},
-    "neptune": {"period_days": 59800.0, "radius_au": 30.1, "name": "NEPTUNE", "symbol": "\u2646"},
+    "mercury": {"period_days": 88.0,    "radius_au": 0.39, "name": "MERCURY", "symbol": "\u263F", "L0": 252.25},
+    "venus":   {"period_days": 224.7,   "radius_au": 0.72, "name": "VENUS",   "symbol": "\u2640", "L0": 181.98},
+    "earth":   {"period_days": 365.25,  "radius_au": 1.00, "name": "EARTH",   "symbol": "\u2295", "L0": 100.47},
+    "mars":    {"period_days": 687.0,   "radius_au": 1.52, "name": "MARS",    "symbol": "\u2642", "L0": 355.43},
+    "jupiter": {"period_days": 4331.0,  "radius_au": 5.20, "name": "JUPITER", "symbol": "\u2643", "L0": 34.35},
+    "saturn":  {"period_days": 10747.0, "radius_au": 9.58, "name": "SATURN",  "symbol": "\u2644", "L0": 50.08},
+    "uranus":  {"period_days": 30589.0, "radius_au": 19.2, "name": "URANUS",  "symbol": "\u2645", "L0": 314.20},
+    "neptune": {"period_days": 59800.0, "radius_au": 30.1, "name": "NEPTUNE", "symbol": "\u2646", "L0": 304.22},
 }
 
 EPOCH = date(2000, 1, 1)
@@ -28,16 +34,37 @@ AU_KM = 149_597_870.7
 LIGHT_SPEED_KM_S = 299_792.458
 MARS_SOL_HOURS = 24 + 39 / 60 + 35 / 3600  # Mars day length ("sol") in hours
 
+# Real synodic ("solar day") length in hours for each planet -- the time
+# from one local noon to the next, which is what a surface clock would
+# actually track. Mercury and Venus have solar days vastly longer than
+# their sidereal rotation because their slow/retrograde spin interacts
+# with their own orbital motion; Venus's solar day is even longer than
+# its entire year.
+SOLAR_DAY_HOURS = {
+    "mercury": 4222.6,
+    "venus": 2802.0,
+    "earth": 24.0,
+    "mars": MARS_SOL_HOURS,
+    "jupiter": 9.9,
+    "saturn": 10.7,
+    "uranus": 17.2,
+    "neptune": 16.1,
+}
+
 
 def days_since_epoch(d: date) -> float:
     return (d - EPOCH).days
 
 
 def orbital_angle_deg(planet_key: str, d: date) -> float:
-    """Current angle (degrees) of a planet around the Sun, circular-orbit approx."""
+    """Current angle (degrees) of a planet around the Sun, circular-orbit
+    approx, starting from its real J2000 mean longitude rather than 0 --
+    this is what makes relative planet positions (and therefore distances)
+    come out realistic instead of arbitrary."""
     period = PLANETS[planet_key]["period_days"]
+    l0 = PLANETS[planet_key]["L0"]
     days = days_since_epoch(d)
-    return (days / period * 360.0) % 360.0
+    return (l0 + days / period * 360.0) % 360.0
 
 
 def heliocentric_distance_au(planet_a: str, planet_b: str, d: date) -> float:
@@ -109,13 +136,13 @@ def season(planet_key: str, d: date) -> str:
 
 
 def local_solar_time(planet_key: str, d: datetime) -> str:
-    """Simplified local solar clock — NOT true LMST, just a plausible-looking
-    clock that advances at the planet's own day-length rate.
-
-    For Mars we use the real sol length; for other planets not yet modeled
-    for day-length, we fall back to Earth's 24h for simplicity.
+    """Simplified local solar clock, using each planet's real solar-day
+    length so the clock actually advances at a believable rate for that
+    planet (e.g. Venus's clock crawls, Jupiter's spins fast) -- this is
+    NOT a true position-dependent LMST calculation, just a stylized clock
+    face driven by the real day length.
     """
-    sol_hours = MARS_SOL_HOURS if planet_key == "mars" else 24.0
+    sol_hours = SOLAR_DAY_HOURS.get(planet_key, 24.0)
     # Use elapsed time since epoch (in hours) modulo the sol length,
     # scaled back into a 24-hour clock face for display purposes.
     epoch_dt = datetime(2000, 1, 1, tzinfo=timezone.utc)
