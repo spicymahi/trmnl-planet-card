@@ -1,0 +1,38 @@
+name: Render daily planet card
+
+on:
+  schedule:
+    # Runs once a day at 06:00 UTC. This is just when the card's values
+    # roll over -- TRMNL fetches output/card.png on its own schedule.
+    - cron: "0 6 * * *"
+  workflow_dispatch: {}  # lets you manually trigger a run from the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Playwright's Chromium
+        run: playwright install --with-deps chromium
+
+      - name: Render card
+        run: python render_card.py --planet venus --hero assets/venus.png --out output/card.png
+
+      - name: Commit updated card
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add output/card.png
+          git diff --quiet --cached || git commit -m "Update daily planet card"
+          git push
