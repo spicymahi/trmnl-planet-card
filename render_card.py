@@ -68,6 +68,7 @@ def compute_fields(planet_key: str, when: datetime) -> dict:
         local_time_label=f"{planet_name} SOLAR TIME",
         season=season_label,
         orbit_percent=pct,
+        featured_planet=planet_key,
     )
     return fields, pct
 
