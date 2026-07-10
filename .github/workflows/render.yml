@@ -2,13 +2,10 @@ name: Render daily planet card
 
 on:
   schedule:
-    # Runs once a day at 06:00 UTC. This is just when the card's values
-    # roll over -- TRMNL fetches output/card.png on its own schedule.
+    # Runs once a day at 06:00 UTC. TRMNL_WEBHOOK_URL allows up to 12
+    # pushes/hour, so this schedule has huge headroom -- adjust freely.
     - cron: "0 6 * * *"
   workflow_dispatch: {}  # lets you manually trigger a run from the Actions tab
-
-permissions:
-  contents: write
 
 jobs:
   render:
@@ -29,10 +26,11 @@ jobs:
       - name: Render card
         run: python render_card.py --planet venus --hero assets/venus.png --out output/card.png
 
-      - name: Commit updated card
+      - name: Push image to TRMNL
+        env:
+          TRMNL_WEBHOOK_URL: ${{ secrets.TRMNL_WEBHOOK_URL }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add output/card.png
-          git diff --quiet --cached || git commit -m "Update daily planet card"
-          git push
+          curl -f -X POST \
+            -H "Content-Type: image/png" \
+            --data-binary @output/card.png \
+            "$TRMNL_WEBHOOK_URL"
