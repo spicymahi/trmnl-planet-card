@@ -115,11 +115,19 @@ def render(planet_key: str, hero_image_path: str, out_path: str, when: datetime 
     when = when or datetime.now(timezone.utc)
     fields, pct = compute_fields(planet_key, when)
 
+    hero_path_obj = Path(hero_image_path)
+    if not hero_path_obj.exists():
+        raise FileNotFoundError(
+            f"Hero image not found: {hero_image_path}. Expected an image at "
+            f"assets/{planet_key}.png (or wherever --hero points). Without it, "
+            f"the card would silently render with an empty hero box."
+        )
+
     # Resolve to an absolute path so the <img src="..."> reference works
     # regardless of where the temporary HTML file ends up on disk (it's
     # saved under output/, not the repo root, so a relative path would
     # otherwise point at the wrong location).
-    hero_abs_path = str(Path(hero_image_path).resolve())
+    hero_abs_path = str(hero_path_obj.resolve())
 
     html = render_html(fields, hero_image_path=hero_abs_path, day_percent=pct, orbit_percent=pct)
 
@@ -143,8 +151,21 @@ def render(planet_key: str, hero_image_path: str, out_path: str, when: datetime 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--planet", default="venus")
-    parser.add_argument("--hero", required=True, help="Path to the planet PNG/JPG for the hero image slot")
+    parser.add_argument(
+        "--planet", default=None,
+        help="Which planet to render. If omitted, automatically picks "
+             "today's planet from the shuffled daily rotation (see "
+             "orbital_math.todays_planet)."
+    )
+    parser.add_argument(
+        "--hero", default=None,
+        help="Path to the planet PNG/JPG for the hero image slot. If "
+             "omitted, defaults to assets/<planet>.png."
+    )
     parser.add_argument("--out", default="output/card.png")
     args = parser.parse_args()
-    render(args.planet, args.hero, args.out)
+
+    planet = args.planet or om.todays_planet(datetime.now(timezone.utc).date())
+    hero = args.hero or f"assets/{planet}.png"
+
+    render(planet, hero, args.out)
