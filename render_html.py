@@ -77,7 +77,7 @@ def render_html(fields: dict, hero_image_path: str, day_percent: int, orbit_perc
 
     # --- 3. Replace the image-slot custom element with a plain <img> ---
     html = re.sub(
-        r'<x-import[^>]*id="planet-art"[^>]*></x-import>',
+        r'<x-import[^>]*id="planet-art[^"]*"[^>]*></x-import>',
         f'<img src="{hero_image_path}" alt="planet" '
         f'style="width:100%;height:100%;object-fit:contain;border-radius:8px;">',
         html,
