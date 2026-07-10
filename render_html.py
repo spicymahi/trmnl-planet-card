@@ -112,6 +112,38 @@ def render_html(fields: dict, hero_image_path: str, day_percent: int, orbit_perc
     return html
 
 
+PLAIN_DOT_HTML = (
+    '<div style="position: relative; width: 11px; height: 11px; margin-top: 13px; '
+    'border-radius: 50%; border: 1.5px solid #000000; background: #ffffff; '
+    'box-sizing: border-box; box-shadow: 0 0 0 5px #ffffff;"></div>'
+)
+
+HIGHLIGHTED_DOT_HTML = (
+    '<div style="position: relative; margin-top: 8px; width: 20px; height: 20px; '
+    'display: flex; align-items: center; justify-content: center;">'
+    '<span style="position: absolute; inset: -10px; border: 1px dashed #000000; '
+    'border-radius: 50%;"></span>'
+    '<span style="width: 17px; height: 17px; border-radius: 50%; background: #000000; '
+    'box-shadow: 0 0 0 4px #ffffff;"></span>'
+    '</div>'
+)
+
+ALL_PLANET_KEYS = [
+    "mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune",
+]
+
+
+def build_dot_fields(featured_planet: str) -> dict:
+    """Returns the {planetKey}Dot -> HTML mapping for all 8 planets in the
+    solar-system strip: the featured planet gets the filled/highlighted
+    dot, every other planet gets the plain hollow dot."""
+    dots = {}
+    for key in ALL_PLANET_KEYS:
+        field_name = f"{key}Dot"
+        dots[field_name] = HIGHLIGHTED_DOT_HTML if key == featured_planet else PLAIN_DOT_HTML
+    return dots
+
+
 def build_fields(
     planet_name: str,
     planet_subtitle: str,
@@ -126,8 +158,9 @@ def build_fields(
     local_time_label: str,
     season: str,
     orbit_percent: int,
+    featured_planet: str,
 ) -> dict:
-    return {
+    fields = {
         "planetName": planet_name,
         "planetSubtitle": planet_subtitle,
         "dateStr": date_str,
@@ -142,6 +175,8 @@ def build_fields(
         "season": season,
         "orbitPercent": orbit_percent,
     }
+    fields.update(build_dot_fields(featured_planet))
+    return fields
 
 
 if __name__ == "__main__":
@@ -167,6 +202,7 @@ if __name__ == "__main__":
         local_time_label="VENUS SOLAR TIME",
         season="NORTHERN WINTER",
         orbit_percent=45,
+        featured_planet="venus",
     )
 
     html = render_html(fields, hero_image_path=args.hero, day_percent=45, orbit_percent=45)
