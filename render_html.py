@@ -86,13 +86,13 @@ def render_html(fields: dict, hero_image_path: str, day_percent: int, orbit_perc
     # --- 4. Expand the two sc-for progress-bar loops into literal spans ---
     html = re.sub(
         r'<sc-for list="\{\{ daySquares \}\}"[^>]*>.*?</sc-for>',
-        make_squares_html(day_percent, count=20, size_px=13),
+        make_squares_html(day_percent, count=18, size_px=9),
         html,
         flags=re.DOTALL,
     )
     html = re.sub(
         r'<sc-for list="\{\{ orbitSquares \}\}"[^>]*>.*?</sc-for>',
-        make_squares_html(orbit_percent, count=26, size_px=14),
+        make_squares_html(orbit_percent, count=20, size_px=9),
         html,
         flags=re.DOTALL,
     )
