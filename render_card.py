@@ -1,7 +1,8 @@
 """
 The main daily entry point: computes today's values for a given planet,
-injects them into card_template.html, screenshots the result, downscales
-to the real TRMNL OG resolution, and dithers to true 1-bit.
+injects them into card_template.html, screenshots the result at the
+card's true native resolution (800x480, no scaling), and converts it to
+pure 1-bit black/white.
 
 Usage:
     python render_card.py --planet venus --hero assets/venus.png --out output/card.png
@@ -20,8 +21,6 @@ from render_html import render_html, build_fields
 TRMNL_WIDTH = 800
 TRMNL_HEIGHT = 480
 
-# Screenshot at 2x the target resolution for crisper downscaling/dithering,
-# matching the template's own natural width (1760-ish at 2:1 ratio).
 PLANET_SUBTITLES = {
     "mercury": "THE SWIFT PLANET",
     "venus": "THE EVENING STAR",
@@ -73,50 +72,39 @@ def compute_fields(planet_key: str, when: datetime) -> dict:
     return fields, pct
 
 
-# The card's own container is a fixed, non-responsive 1760px + 40px padding
-# = 1800px wide. Rather than screenshot at that native size and downscale
-# afterward (which either blurs thin lines into gray bands, or -- with a
-# naive nearest-neighbor resize -- can drop them almost entirely), we zoom
-# the actual page to very close to the final resolution BEFORE capture.
-# This lets Chromium's own text/vector renderer do the scaling with proper
-# anti-aliasing, which a hard threshold afterward then converts cleanly to
-# solid 1-bit black/white -- no separate lossy resize step needed.
-NATIVE_CARD_WIDTH = 1800
-ZOOM_VIEWPORT_WIDTH = TRMNL_WIDTH
-ZOOM_VIEWPORT_HEIGHT = TRMNL_HEIGHT + 20  # small buffer; card content is cropped precisely below
+# The template is now designed natively at 800x480 (the real TRMNL OG
+# resolution) -- no scaling of any kind happens between the browser's
+# render and the final image. This matters: any zoom/resize step, however
+# carefully tuned, still involves resampling math that can blur or drop
+# fine text and hairline dividers. Rendering 1:1 at the true target
+# resolution sidesteps that class of problem entirely, the same way a
+# native e-ink app would.
 
 
 def screenshot_html(html_path: Path, png_path: Path):
-    zoom = ZOOM_VIEWPORT_WIDTH / NATIVE_CARD_WIDTH
     with sync_playwright() as p:
         browser = p.chromium.launch()
-        page = browser.new_page(viewport={"width": ZOOM_VIEWPORT_WIDTH, "height": ZOOM_VIEWPORT_HEIGHT})
+        page = browser.new_page(viewport={"width": TRMNL_WIDTH, "height": TRMNL_HEIGHT})
         page.goto(f"file://{html_path.resolve()}")
         page.wait_for_timeout(1200)  # let webfonts finish loading
-        page.evaluate(f'document.body.style.zoom = "{zoom}"')
-        page.wait_for_timeout(300)  # let the zoomed layout settle
-        page.screenshot(path=str(png_path), full_page=True)
+        page.screenshot(path=str(png_path))  # not full_page: card is exactly viewport-sized
         browser.close()
 
 
-def downscale_and_dither(src_path: Path, dst_path: Path):
-    """Crop to the exact device resolution and convert to pure 1-bit.
+def to_pure_bw(src_path: Path, dst_path: Path):
+    """Convert to pure 1-bit black/white with a hard threshold.
 
-    No resize happens here -- the screenshot was already captured at
-    (very close to) the final resolution via CSS zoom in screenshot_html(),
-    so Chromium's own renderer produced clean, properly anti-aliased text
-    and lines at roughly the right scale already. All that's left is a
-    precise crop to exactly TRMNL_WIDTH x TRMNL_HEIGHT and a hard
-    black/white threshold -- no lossy post-hoc resize filter involved,
-    which is what previously either blurred thin lines into gray dot
-    patterns (LANCZOS) or dropped them outright (NEAREST-as-a-resize-step).
+    No resize happens here at all -- the screenshot is already exactly
+    TRMNL_WIDTH x TRMNL_HEIGHT. A hard threshold (not Floyd-Steinberg
+    dithering) keeps every line and letter an unambiguous solid black or
+    white pixel, matching the crisp look of a native e-ink app.
     """
     im = Image.open(src_path).convert("L")
-
-    # The screenshot may be a pixel or two off from exact target dimensions
-    # (webfont metrics can shift layout slightly) -- crop from the top-left
-    # to guarantee an exact TRMNL_WIDTH x TRMNL_HEIGHT output.
-    im = im.crop((0, 0, TRMNL_WIDTH, TRMNL_HEIGHT))
+    assert im.size == (TRMNL_WIDTH, TRMNL_HEIGHT), (
+        f"Expected exactly {TRMNL_WIDTH}x{TRMNL_HEIGHT}, got {{im.size}}. "
+        f"Check that card_template.html's outer div is still sized "
+        f"{TRMNL_WIDTH}x{TRMNL_HEIGHT} with no extra margin/padding overflow."
+    )
 
     threshold = 128
     bw = im.point(lambda p: 255 if p > threshold else 0, mode="L").convert("1")
@@ -144,7 +132,7 @@ def render(planet_key: str, hero_image_path: str, out_path: str, when: datetime 
 
     out = Path(out_path)
     out.parent.mkdir(parents=True, exist_ok=True)
-    downscale_and_dither(tmp_png, out)
+    to_pure_bw(tmp_png, out)
 
     print(f"Saved {out}")
     print(f"  planet={planet_key} date={fields['dateStr']} "
