@@ -24,7 +24,7 @@ jobs:
         run: playwright install --with-deps chromium
 
       - name: Render card
-        run: python render_card.py --planet venus --hero assets/venus.png --out output/card.png
+        run: python render_card.py --out output/card.png
 
       - name: Push image to TRMNL
         env:
