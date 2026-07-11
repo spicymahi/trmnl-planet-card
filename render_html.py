@@ -46,13 +46,17 @@ def render_html(fields: dict, hero_image_path: str, day_percent: int, orbit_perc
     # --- 0b. Replace the <helmet>...</helmet> block (Claude Design's
     #          head-injection convention, containing @font-face rules that
     #          point at opaque asset UUIDs) with a plain Google Fonts link.
-    #          Archivo Black + Space Mono are both free/open on Google Fonts,
-    #          which is what this template actually uses. ---
+    #          Archivo Black is the display font for the planet title;
+    #          IBM Plex Mono (bold weight) is used for everything else --
+    #          chosen specifically because it has a genuinely heavy bold
+    #          weight that survives a hard 1-bit threshold at small sizes,
+    #          unlike thinner monospace fonts (e.g. Space Mono) whose
+    #          strokes can partially vanish once anti-aliasing is removed. ---
     google_fonts_link = (
         '<link rel="preconnect" href="https://fonts.googleapis.com">\n'
         '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n'
         '<link href="https://fonts.googleapis.com/css2?'
-        'family=Archivo+Black&family=Space+Mono:wght@400;700&display=swap" '
+        'family=Archivo+Black&family=IBM+Plex+Mono:wght@400;700&display=swap" '
         'rel="stylesheet">\n'
         '<style>\n'
         '  body { margin: 0; background: #ffffff; }\n'
